@@ -15,6 +15,16 @@
   fit();
 
   OF.ads.init();
+  OF.notify.refresh();
+  // Android hardware back button
+  try {
+    const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+    if (App && App.addListener) App.addListener('backButton', () => {
+      if (OF.ui.sheetOpen) { const b = document.querySelector('#sheet [data-act=close],#sheet [data-act=resume],#sheet [data-act=toHome]'); if (b) b.click(); return; }
+      if (game.run && !game.attract) return OF.ui.act.pause();
+      if (App.exitApp) App.exitApp();
+    });
+  } catch (e) { /* ignore */ }
   OF.ui.home();
   game.startAttract();
   OF.ui.maybeDailyReward();

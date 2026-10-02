@@ -13,7 +13,7 @@
     adGems: { day: '', n: 0 },
     missions: { day: '', list: [] },
     challenge: { day: '', done: false, best: 0 },
-    tutorialDone: false, lastInterstitial: 0, runsSinceAd: 0,
+    tutorialDone: false, lastInterstitial: 0, runsSinceAd: 0, notifAsked: false, notifOn: false, rated: false,
   };
   function deepMerge(base, src) {
     const out = Array.isArray(base) ? base.slice() : Object.assign({}, base);
@@ -142,20 +142,33 @@
 
   /* ---------------- ADS ----------------
      Web / dev builds show a fake ad so the whole flow is testable.
-     On device (Capacitor + @capacitor-community/admob) real ads are used.
-     Replace the TEST ids in OF.AD_IDS with your real AdMob unit ids later. */
-  OF.AD_IDS = {
-    rewarded: 'ca-app-pub-3940256099942544/5224354917',     // Google TEST id
-    interstitial: 'ca-app-pub-3940256099942544/1033173712', // Google TEST id
-    testing: true,
-  };
+     On device (Capacitor + @capacitor-community/admob) real (currently TEST) ads are used.
+     Ids live in www/js/config.js. */
   const Ads = OF.ads = {
-    ready: false,
+    ready: false, busy: false,
+    plat() { try { return window.Capacitor.getPlatform(); } catch (e) { return 'web'; } },
     plugin() { return window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob; },
+    ids() { const c = OF.CONFIG.ads; return Object.assign({ testing: c.testing }, this.plat() === 'ios' ? c.ios : c.android); },
     async init() {
-      const A = this.plugin();
-      if (A) { try { await A.initialize({ initializeForTesting: OF.AD_IDS.testing }); this.ready = true; } catch (e) { console.warn('AdMob init failed', e); } }
+      const A = this.plugin(); if (!A) return;
+      try {
+        // GDPR / UMP consent (only shows a form where legally required)
+        try {
+          const info = await A.requestConsentInfo();
+          if (info && info.isConsentFormAvailable && info.status === 'REQUIRED') await A.showConsentForm();
+        } catch (e) { console.warn('consent', e); }
+        if (this.plat() === 'ios') { try { await A.requestTrackingAuthorization(); } catch (e) { /* ignore */ } }
+        await A.initialize({ initializeForTesting: OF.CONFIG.ads.testing });
+        this.ready = true;
+        this.preload();
+      } catch (e) { console.warn('AdMob init failed', e); }
     },
+    preload() {
+      const A = this.plugin(); if (!A || !this.ready) return;
+      const id = this.ids();
+      A.prepareInterstitial({ adId: id.interstitial, isTesting: id.testing }).catch(() => {});
+    },
+    mute(on) { if (OF.audio.master) OF.audio.master.gain.value = on ? 0 : 0.8; },
     fake(kind) {
       return new Promise(res => {
         const el = document.getElementById('adOverlay'); if (!el) return res(true);
@@ -173,31 +186,44 @@
     },
     /** resolves true only if the user earned the reward */
     async rewarded(placement) {
-      OF.track && OF.track('ad_rewarded_request', { placement });
-      const A = this.plugin();
-      if (A) {
-        try {
-          await A.prepareRewardVideoAd({ adId: OF.AD_IDS.rewarded, isTesting: OF.AD_IDS.testing });
-          const r = await A.showRewardVideoAd();
-          return !!r;
-        } catch (e) { console.warn('rewarded failed', e); OF.toast && OF.toast('No ad available right now'); return false; }
-      }
-      return this.fake('rewarded');
+      if (this.busy) return false;
+      this.busy = true; OF.track('ad_rewarded_request', { placement });
+      try {
+        const A = this.plugin();
+        if (!A) return await this.fake('rewarded');
+        const id = this.ids();
+        this.mute(true);
+        return await new Promise(async res => {
+          let rewarded = false, fin = false; const hs = [];
+          const done = () => { if (fin) return; fin = true; hs.forEach(h => { try { h.remove(); } catch (e) {} }); res(rewarded); };
+          try {
+            hs.push(await A.addListener('onRewardedVideoAdReward', () => { rewarded = true; }));
+            hs.push(await A.addListener('onRewardedVideoAdDismissed', () => setTimeout(done, 150)));
+            hs.push(await A.addListener('onRewardedVideoAdFailedToShow', done));
+            await A.prepareRewardVideoAd({ adId: id.rewarded, isTesting: id.testing });
+            await A.showRewardVideoAd();
+            setTimeout(done, 90000); // safety net
+          } catch (e) { console.warn('rewarded failed', e); OF.toast('No ad available right now – try again soon'); done(); }
+        });
+      } finally { this.mute(false); this.busy = false; }
     },
     async interstitial() {
       const d = Save.d;
-      if (d.adsRemoved) return false;
+      if (d.adsRemoved || this.busy) return false;
       const now = Date.now();
       d.runsSinceAd++;
       if (d.runs < OF.CFG.firstInterstitialAfterRuns) { Save.write(); return false; }
       if (d.runsSinceAd < OF.CFG.interstitialEveryRuns || now - d.lastInterstitial < OF.CFG.interstitialMinGapMs) { Save.write(); return false; }
       d.runsSinceAd = 0; d.lastInterstitial = now; Save.write();
-      const A = this.plugin();
-      if (A) {
-        try { await A.prepareInterstitial({ adId: OF.AD_IDS.interstitial, isTesting: OF.AD_IDS.testing }); await A.showInterstitial(); return true; }
+      this.busy = true;
+      try {
+        const A = this.plugin();
+        if (!A) return await this.fake('interstitial');
+        const id = this.ids();
+        this.mute(true);
+        try { await A.prepareInterstitial({ adId: id.interstitial, isTesting: id.testing }); await A.showInterstitial(); return true; }
         catch (e) { return false; }
-      }
-      return this.fake('interstitial');
+      } finally { this.mute(false); this.busy = false; this.preload(); }
     },
   };
 
@@ -218,6 +244,31 @@
     async buy(id) {
       const ok = await (OF.confirmPurchase ? OF.confirmPurchase(id) : Promise.resolve(true));
       return ok ? this.grant(id) : false;
+    },
+  };
+
+  /* ---------------- RETENTION REMINDERS (local notifications, native only) ---------------- */
+  OF.notify = {
+    plugin() { return window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications; },
+    async ask() {
+      const N = this.plugin(), d = Save.d; if (!N || d.notifAsked) return;
+      d.notifAsked = true;
+      try { const p = await N.requestPermissions(); d.notifOn = p.display === 'granted'; } catch (e) { /* ignore */ }
+      Save.write(); this.refresh();
+    },
+    async refresh() {
+      const N = this.plugin(), d = Save.d; if (!N || !d.notifOn) return;
+      try {
+        await N.cancel({ notifications: [{ id: 1 }, { id: 2 }, { id: 3 }] });
+        const list = [], now = Date.now();
+        const wheelAt = d.wheel.last + OF.CFG.wheelCooldownMs;
+        if (d.wheel.last && wheelAt > now) list.push({ id: 1, title: '🎡 Free spin ready!', body: 'Your lucky wheel is waiting – come win gems!', schedule: { at: new Date(wheelAt) } });
+        const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(10, 30, 0, 0);
+        list.push({ id: 2, title: '🎁 Daily reward', body: 'Claim today\'s reward and keep your streak alive!', schedule: { at: t } });
+        const u = new Date(now + 3 * 86400000); u.setHours(19, 0, 0, 0);
+        list.push({ id: 3, title: '🔵 Your orbs miss you', body: 'New daily challenge is live. Can you beat the boss?', schedule: { at: u } });
+        await N.schedule({ notifications: list });
+      } catch (e) { console.warn('notify', e); }
     },
   };
 

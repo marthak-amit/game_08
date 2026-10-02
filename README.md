@@ -24,7 +24,7 @@ npx cap add android
 npm run android:debug     # -> android/app/build/outputs/apk/debug/app-debug.apk
 ```
 A GitHub Action (`.github/workflows/android.yml`) builds the debug APK on every push.
-See **docs/LAUNCH.md** for Play Store release, AdMob, IAP and consent steps and
+See **docs/LAUNCH.md** (where to put your AdMob ids: `www/js/config.js`) and
 **docs/MONETIZATION.md** for the revenue plan and honest numbers.
 
 ## Code map

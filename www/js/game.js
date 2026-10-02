@@ -186,7 +186,8 @@
           for (let j = keep.length - 1; j >= 0; j--) if ((keep[j][0] - k[0]) ** 2 + (keep[j][1] - k[1]) ** 2 < 62 * 62) keep.splice(j, 1);
         }
       }
-      const goldP = 0.07 + 0.04 * this.m('gold'), redP = 0.11, bombP = stage >= 2 ? 0.035 : 0.01;
+      const boss = !forAttract && stage % OF.CFG.bossEvery === 0;
+      const goldP = 0.07 + 0.04 * this.m('gold') + (boss ? 0.05 : 0), redP = 0.11 + (boss ? 0.04 : 0), bombP = (stage >= 2 ? 0.035 : 0.01) + (boss ? 0.03 : 0);
       this.pegs = [];
       for (const [x, y] of keep) {
         const q = rng();
@@ -558,6 +559,15 @@
         const hits = this.balls.length ? Math.max(...this.balls.map(b => b.hits)) : 0;
         if (hits > 1) { g.font = '800 15px system-ui, sans-serif'; g.fillStyle = '#ffd23f'; g.fillText('COMBO ×' + hits, 0, 28); }
         g.restore();
+      }
+      if (!this.attract && this.run && this.run.stage % OF.CFG.bossEvery === 0 && this.state !== 'idle') {
+        const bg = g.createRadialGradient(W / 2, this.H / 2, this.H * 0.25, W / 2, this.H / 2, this.H * 0.75);
+        bg.addColorStop(0, 'rgba(255,40,80,0)'); bg.addColorStop(1, 'rgba(255,40,80,' + (0.16 + 0.06 * Math.sin(this.time * 3)) + ')');
+        g.fillStyle = bg; g.fillRect(0, 0, W, this.H);
+      }
+      if (!OF.save.d.tutorialDone && this.state === 'drop' && this.run && this.run.nudges > 0) {
+        g.font = '800 17px system-ui, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'center';
+        g.fillText('TAP the screen to nudge the orb!', W / 2, this.playTop - 14);
       }
       if (this.flash > 0) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,255,255,${this.flash * 0.35})`; g.fillRect(0, 0, this.cv.width, this.cv.height); }
     }

@@ -76,7 +76,7 @@
       : '<span class="orb-dot"></span><b>×' + o + '</b>';
     $('#hNudge').innerHTML = '👆 <b>' + r.nudges + '</b>';
     $('#hCoins').innerHTML = '🪙 <b>' + fmt(r.coins) + '</b>';
-    if (game.state === 'drop' && !S().tutorialDone) { S().tutorialDone = true; OF.save.write(); }
+    if (r.stage >= 2 && !S().tutorialDone) { S().tutorialDone = true; OF.save.write(); }
   }
 
   /* ---------- home ---------- */
@@ -217,6 +217,7 @@
     OF.save.write();
     UI.resultCtx = { coins, doubled: false, mode: r.mode };
     OF.track('run_end', { stage: stageReached, score: r.totalScore, mode: r.mode });
+    if (d.runs >= 2) OF.notify.ask(); else OF.notify.refresh();
     UI.open(`
       <h2>${r.mode === 'daily' ? (challengeWon ? '🏆 CHALLENGE DONE' : 'DAILY CHALLENGE') : 'RUN OVER'}</h2>
       ${newBest ? '<p class="sub hl">★ NEW BEST STAGE ★</p>' : '<p class="sub">Nice run!</p>'}
@@ -275,12 +276,21 @@
   UI.act.settings = function () {
     UI.open(`<h2>SETTINGS</h2><p class="sub">Orbfall v1.0</p>${toggles()}
       <div class="list" style="margin-top:1em">
-        <button class="btn ghost block" data-act="privacy">Privacy &amp; ads consent</button>
+        <button class="btn ghost block" data-act="privacy">Privacy policy</button>
+        <button class="btn ghost block" data-act="consent">Ad privacy options</button>
+        <button class="btn ghost block" data-act="restore">Restore purchases</button>
+        ${OF.CONFIG.storeUrl ? '<button class="btn ghost block" data-act="rate">⭐ Rate Orbfall</button>' : ''}
         <button class="btn ghost block" data-act="resetData">Reset all progress</button>
         <button class="btn block" data-act="close">Close</button>
       </div>`);
   };
-  UI.act.privacy = function () { OF.toast('Add your privacy-policy URL in docs/LAUNCH.md'); };
+  UI.act.privacy = function () { window.open(OF.CONFIG.privacyUrl, '_blank'); };
+  UI.act.consent = async function () {
+    const A = OF.ads.plugin(); if (!A) return OF.toast('Ad privacy options appear on the mobile app');
+    try { await A.showConsentForm(); } catch (e) { OF.toast('Nothing to change'); }
+  };
+  UI.act.restore = function () { OF.toast(OF.iap.restore ? 'Checking purchases…' : 'Purchases restore automatically on the store build'); if (OF.iap.restore) OF.iap.restore(); };
+  UI.act.rate = function () { window.open(OF.CONFIG.storeUrl, '_blank'); };
   UI.act.resetData = function () { if (window.confirm('Delete ALL progress?')) { OF.save.reset(); UI.close(); UI.home(); game.setTheme(S().theme); OF.toast('Progress reset'); } };
   UI.act.close = function () { OF.audio.click(); UI.close(); };
 
