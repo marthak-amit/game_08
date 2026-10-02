@@ -1,0 +1,10 @@
+{
+  "appId": "com.orbfall.game",
+  "appName": "Orbfall",
+  "webDir": "www",
+  "backgroundColor": "#05061a",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#05061a" }
+  }
+}

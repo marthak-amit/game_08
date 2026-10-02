@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05061a">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Orbfall</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="cv"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="stage-pill"><small>STAGE</small><b id="hStage">1</b></div>
+      <div class="goal">
+        <div class="goal-bar"><i id="hBar"></i></div>
+        <span id="hScore">0 / 450</span>
+      </div>
+      <button class="icon-btn" data-act="pause" aria-label="Pause">❚❚</button>
+    </div>
+    <div class="hud-row">
+      <div class="chip orbs" id="hOrbs"></div>
+      <div class="chip" id="hNudge">👆 <b>2</b></div>
+      <div class="chip" id="hCoins">🪙 <b>0</b></div>
+    </div>
+  </div>
+
+  <div id="home" class="screen">
+    <div class="wallet">
+      <div class="chip big"><span>🪙</span><b data-wallet="coins">0</b></div>
+      <div class="chip big"><span>💎</span><b data-wallet="gems">0</b></div>
+      <button class="icon-btn" data-act="settings" aria-label="Settings">⚙️</button>
+    </div>
+    <div class="logo">
+      <div class="logo-orb"></div>
+      <h1>ORB<span>FALL</span></h1>
+      <p>Drop. Bounce. Multiply.</p>
+    </div>
+    <div class="home-bottom">
+      <div class="best" id="homeBest"></div>
+      <button class="btn play" data-act="play">PLAY</button>
+      <div class="menu-row">
+        <button class="menu-btn" data-act="upgrades"><i>⬆️</i><span>Upgrades</span></button>
+        <button class="menu-btn" data-act="shop"><i>🛒</i><span>Shop</span></button>
+        <button class="menu-btn" data-act="challenge"><i>📅</i><span>Daily</span><em class="dot" id="dotChallenge"></em></button>
+        <button class="menu-btn" data-act="wheel"><i>🎡</i><span>Wheel</span><em class="dot" id="dotWheel"></em></button>
+        <button class="menu-btn" data-act="missions"><i>🎯</i><span>Missions</span><em class="dot" id="dotMissions"></em></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+  <div id="overlay" class="overlay"><div class="sheet" id="sheet"></div></div>
+  <div id="toast" class="toast"></div>
+
+  <div id="adOverlay" class="ad-overlay">
+    <div class="ad-box">
+      <div class="ad-kind">TEST AD</div>
+      <div class="ad-fake">📺</div>
+      <div class="ad-count">3</div>
+      <p>This is a placeholder. Real ads appear after you connect AdMob.</p>
+      <button class="btn">Wait…</button>
+    </div>
+  </div>
+</div>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/services.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
